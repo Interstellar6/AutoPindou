@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="纯前端拼豆图纸生成器：上传图片，自由设置豆板尺寸，自动匹配 MARD 221 色拼豆色号，生成可打印的图纸与用量清单。">
+<title>拼豆图纸生成器 · MARD 221 色</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fffdf9'/%3E%3Ccircle cx='11' cy='11' r='4.2' fill='%23d95f43'/%3E%3Ccircle cx='21' cy='11' r='4.2' fill='%23e8b64c'/%3E%3Ccircle cx='11' cy='21' r='4.2' fill='%232f7d76'/%3E%3Ccircle cx='21' cy='21' r='4.2' fill='%23e2795f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div class="brand-text">
+      <h1>拼豆图纸生成器</h1>
+      <p>MARD 221 色 · 纯前端 · 图片不出本机</p>
+    </div>
+  </div>
+
+  <div class="top-actions">
+    <button class="btn ghost" id="btnSample" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg>
+      示例图
+    </button>
+    <button class="btn primary" id="btnUpload" type="button" title="支持 JPG / PNG / WebP / GIF / BMP / AVIF，不支持 PDF">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>
+      上传图片
+    </button>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif" hidden>
+
+    <div class="menu-wrap">
+      <button class="btn ghost" id="btnMore" type="button" aria-haspopup="true" aria-expanded="false">
+        导出
+        <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
+      </button>
+      <div class="menu" id="moreMenu" hidden>
+        <button type="button" id="btnPng">图纸 PNG <span>含色号表</span></button>
+        <button type="button" id="btnPngPlain">纯网格 PNG <span>只含格子</span></button>
+        <button type="button" id="btnCsv">用量 CSV <span>Excel 可开</span></button>
+        <button type="button" id="btnPrint">打印图纸 <span>A4</span></button>
+        <hr>
+        <button type="button" id="btnExportProject">导出工程 JSON</button>
+        <button type="button" id="btnImportProject">导入工程 JSON</button>
+        <input type="file" id="projectInput" accept=".json,application/json" hidden>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ==================== 左侧控制 ==================== -->
+  <aside class="panel controls" id="controlsPanel">
+    <div class="panel-scroll">
+
+      <section class="block">
+        <div class="block-head">
+          <h2>豆板尺寸</h2>
+          <span class="hint" id="boardHint">29 × 29 孔</span>
+        </div>
+
+        <div class="presets" id="presets">
+          <button type="button" data-size="14">14×14</button>
+          <button type="button" data-size="29" class="is-active">29×29</button>
+          <button type="button" data-size="40">40×40</button>
+          <button type="button" data-size="57">57×57</button>
+        </div>
+
+        <label class="field full size-slider-field">
+          <span class="slider-title">
+            <span>滑动调尺寸</span>
+            <b><span id="sizeSliderVal">29</span> × <span id="sizeSliderVal2">29</span></b>
+          </span>
+          <input type="range" id="sizeSlider" min="5" max="200" step="1" value="29">
+          <span class="range-ends"><em>5</em><em>200 孔</em></span>
+        </label>
+
+        <div class="size-row">
+          <label class="field">
+            <span>宽（列）</span>
+            <input type="number" id="colsInput" min="1" max="200" step="1" value="29" inputmode="numeric">
+          </label>
+          <button type="button" class="swap-btn" id="btnSwap" title="交换宽高" aria-label="交换宽高">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10l-3-3m3 11H7l3 3"/></svg>
+          </button>
+          <label class="field">
+            <span>高（行）</span>
+            <input type="number" id="rowsInput" min="1" max="200" step="1" value="29" inputmode="numeric">
+          </label>
+        </div>
+        <p class="micro">滑块 = 正方形豆板（宽高同步）；输入框可单独设定长宽，范围 1–200 孔。</p>
+
+        <div class="seg" id="fitSeg" role="group" aria-label="画面适配">
+          <button type="button" data-fit="contain" class="is-active">完整适应</button>
+          <button type="button" data-fit="cover">裁剪填充</button>
+          <button type="button" data-fit="stretch">拉伸铺满</button>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="boardSplit">
+          <span>显示 29 孔分板线（拼接大板用）</span>
+        </label>
+      </section>
+
+      <section class="block">
+        <div class="block-head">
+          <h2>颜色处理</h2>
+          <span class="hint" id="paletteHint">221 色可用</span>
+        </div>
+
+        <label class="field full">
+          <span>最大用色数 <b id="maxColorsVal">32</b> 色</span>
+          <input type="range" id="maxColors" min="2" max="221" step="1" value="32">
+        </label>
+
+        <label class="field full">
+          <span>抖动方式</span>
+          <select id="dither">
+            <option value="none" selected>不抖动（色块更干净，推荐）</option>
+            <option value="bayer">有序抖动（适合照片渐变）</option>
+            <option value="fs">误差扩散（渐变最细腻）</option>
+          </select>
+        </label>
+
+        <div class="adjust-grid">
+          <div class="adjust-title">
+            <span>画面调节</span>
+            <button type="button" class="link-btn" id="btnResetAdjust">全部复位</button>
+          </div>
+          <label class="field full">
+            <span>明度 <b id="brightnessVal">0%</b></span>
+            <input type="range" id="brightness" min="-100" max="100" step="1" value="0">
+          </label>
+          <label class="field full">
+            <span>对比度 <b id="contrastVal">0%</b></span>
+            <input type="range" id="contrast" min="-100" max="100" step="1" value="0">
+          </label>
+          <label class="field full">
+            <span>饱和度 <b id="saturationVal">0%</b></span>
+            <input type="range" id="saturation" min="-100" max="100" step="1" value="0">
+          </label>
+          <div class="sat-quick" id="satQuick" aria-label="饱和度快捷设置">
+            <button type="button" data-sat="0">原色</button>
+            <button type="button" data-sat="35">鲜艳</button>
+            <button type="button" data-sat="-40">柔和</button>
+            <button type="button" data-sat="-100">黑白</button>
+          </div>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="removeWhite">
+          <span>自动去除近白背景（≥240）</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="keepAlpha" checked>
+          <span>透明区域留空（不摆豆）</span>
+        </label>
+      </section>
+
+      <section class="block palette-block">
+        <div class="block-head">
+          <h2>MARD 可用色板</h2>
+          <span class="hint" id="enabledCount">221 / 221</span>
+        </div>
+
+        <div class="palette-tools">
+          <div class="seg small" id="paletteMode" role="group" aria-label="色板点击模式">
+            <button type="button" data-mode="pick" class="is-active">取色</button>
+            <button type="button" data-mode="toggle">启用/禁用</button>
+          </div>
+          <div class="mini-actions">
+            <button type="button" class="link-btn" id="btnPaletteAll">全选</button>
+            <button type="button" class="link-btn" id="btnPaletteNone">全禁</button>
+          </div>
+        </div>
+
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg>
+          <input type="search" id="paletteSearch" placeholder="搜色号或色值，如 A1 / M15 / FCFF92">
+        </div>
+
+        <p class="micro" id="paletteModeHint">点击色块 = 选为画笔颜色；禁用的颜色不参与匹配。</p>
+        <div class="palette-groups" id="paletteGroups"></div>
+      </section>
+
+      <section class="block block-quiet">
+        <div class="block-head"><h2>工程</h2></div>
+        <div class="project-row">
+          <button class="btn tiny" type="button" id="btnSaveDraft">保存草稿</button>
+          <button class="btn tiny" type="button" id="btnReset">清空重来</button>
+        </div>
+        <p class="micro">草稿保存图纸与参数（不含原图），只存在本机浏览器。刷新后可继续编辑；重新按原图采样请再上传一次。</p>
+      </section>
+
+    </div>
+  </aside>
+
+  <!-- ==================== 中间画布 ==================== -->
+  <section class="workspace">
+
+    <div class="stage-toolbar">
+      <div class="seg tools" id="toolSeg" role="group" aria-label="编辑工具">
+        <button type="button" data-tool="paint" class="is-active" title="画笔：拖动涂色">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5z"/></svg>
+          画笔
+        </button>
+        <button type="button" data-tool="erase" title="橡皮：拖动清空">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l6-6 7 7-3 3H7l-3-4zM14 6l4 4"/></svg>
+          橡皮
+        </button>
+        <button type="button" data-tool="pick" title="吸管：吸取格子颜色">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l3-1 9-9-2-2-9 9-1 3zM15 5l2-2 4 4-2 2"/></svg>
+          吸管
+        </button>
+      </div>
+
+      <div class="paint-color" id="paintColor" title="当前画笔颜色">
+        <span class="paint-chip" id="paintChip"></span>
+        <span class="paint-meta"><b id="paintCode">A1</b><em id="paintHex">—</em></span>
+      </div>
+
+      <div class="toolbar-spacer"></div>
+
+      <div class="toggles">
+        <label class="switch"><input type="checkbox" id="showGrid" checked><span>网格</span></label>
+        <label class="switch"><input type="checkbox" id="showCodes"><span>色号</span></label>
+        <label class="switch"><input type="checkbox" id="showRuler" checked><span>标尺</span></label>
+        <label class="switch"><input type="checkbox" id="bead3d"><span>豆子质感</span></label>
+      </div>
+
+      <div class="zoom-group">
+        <button type="button" class="icon-btn" id="zoomOut" aria-label="缩小">−</button>
+        <span id="zoomLabel">100%</span>
+        <button type="button" class="icon-btn" id="zoomIn" aria-label="放大">+</button>
+        <button type="button" class="btn tiny" id="zoomFit">适应</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage-inner" id="stageInner">
+        <div class="board-wrap" id="boardWrap">
+          <canvas id="board"></canvas>
+          <div class="cell-mark" id="cellMark" hidden></div>
+        </div>
+      </div>
+      <div class="empty-hint" id="emptyHint" hidden>
+        <div class="empty-beads" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <h3>放一张图片进来</h3>
+        <p>拖拽到这里，或点击右上角「上传图片」<br>也可以先看看 <button type="button" class="link-btn" id="hintSample">示例图</button></p>
+        <span class="empty-formats">支持 JPG / PNG / WebP / GIF / BMP / AVIF 常规图片</span>
+      </div>
+      <div class="hover-tip" id="hoverTip" hidden></div>
+    </div>
+
+    <div class="stage-status">
+      <div class="status-left">
+        <span><b id="statusSize">29 × 29</b> 孔</span>
+        <span class="dot"></span>
+        <span><b id="statusBeads">0</b> 颗豆</span>
+        <span class="dot"></span>
+        <span><b id="statusColors">0</b> 种颜色</span>
+        <span class="dot"></span>
+        <span id="statusPos">第 — 行 / 第 — 列</span>
+      </div>
+      <div class="status-right">
+        <span class="save-state" id="saveState">草稿自动保存</span>
+        <button type="button" class="link-btn" id="btnUndo" disabled>撤销</button>
+        <button type="button" class="link-btn" id="btnRedo" disabled>重做</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 右侧统计 ==================== -->
+  <aside class="panel stats" id="statsPanel">
+    <div class="panel-scroll">
+      <div class="stat-cards">
+        <div class="stat-card">
+          <span>总豆数</span>
+          <b id="statBeads">0</b>
+        </div>
+        <div class="stat-card">
+          <span>用色数</span>
+          <b id="statColors">0</b>
+        </div>
+        <div class="stat-card">
+          <span>成品尺寸</span>
+          <b id="statCm">—</b>
+          <em>按 5mm 豆估算</em>
+        </div>
+      </div>
+
+      <section class="block block-flush">
+        <div class="block-head">
+          <h2>色号用量</h2>
+          <button type="button" class="link-btn" id="btnCopyList">复制清单</button>
+        </div>
+        <p class="micro">点击一行：选中该颜色并高亮对应格子；再点一次取消高亮。</p>
+        <div class="usage-list" id="usageList">
+          <div class="usage-empty">还没有生成图纸</div>
+        </div>
+      </section>
+
+      <section class="block block-flush">
+        <div class="block-head"><h2>提示</h2></div>
+        <ul class="tips">
+          <li>豆板尺寸 = 成品点数，常见 29×29 是标准大板。</li>
+          <li>「最大用色数」调低更好买豆，调高细节更准。</li>
+          <li>生成后可直接用画笔画补，右键 = 橡皮。</li>
+          <li>导出 PNG 会附带色号表和用量，打印即图纸。</li>
+          <li>色卡为社区整理的参考色值，大批量买豆前请对实物色卡。</li>
+        </ul>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<div id="printArea" aria-hidden="true"></div>
+
+<script src="assets/palette.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
